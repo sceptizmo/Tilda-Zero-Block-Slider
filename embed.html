@@ -1,25 +1,25 @@
 <!--
-  Tilda Zero Block Slider — готовый блок для вставки в HTML-блок Тильды
-  
+  Tilda Zero Block Slider — готовый блок для вставки в HTML-блок Тильды.
+
   Шаги:
   1) Назначьте класс uc-review-slide всем блокам, которые должны стать слайдами.
   2) Назначьте классы элементов управления:
      - uc-review-prev — кнопка «назад»
      - uc-review-next — кнопка «вперёд»
-  Элементы управления могут быть в отдельном zero-блоке до слайдов
+  Элементы управления могут быть в отдельном zero-блоке до слайдов.
   или внутри самих слайдов (любой кликабельный элемент).
 
   Сайт: https://github.com/sceptizmo/Tilda-Zero-Block-Slider
 -->
-<style>
-    /* Wrapper for stable layout (prevents jumps) */
+  <style>
+    /* ОБЁРТКА ДЛЯ СТАБИЛЬНОЙ ВЁРСТКИ (БЕЗ СКАЧКОВ) */
     .uc-review-slider {
       position: relative;
       width: 100%;
       overflow: hidden;
     }
   
-    /* Slides positioning */
+    /* ПОЗИЦИОНИРОВАНИЕ СЛАЙДОВ */
     .uc-review-slide {
       position: absolute;
       left: 0; right: 0; top: 0;
@@ -34,7 +34,7 @@
       pointer-events: auto;
     }
   
-    /* Enter animation states */
+    /* СОСТОЯНИЯ ВХОДА АНИМАЦИИ */
     .uc-review-slide.is-enter-from-right {
       transform: translateX(18%);
       opacity: 0;
@@ -47,7 +47,7 @@
   
   <script>
   (function () {
-    // Change only these class names if needed
+    // При необходимости меняйте только эти классы.
     var SLIDE_SEL = ".uc-review-slide";
     var PREV_SEL  = ".uc-review-prev";
     var NEXT_SEL  = ".uc-review-next";
@@ -59,11 +59,11 @@
       var prevButtons = Array.prototype.slice.call(document.querySelectorAll(PREV_SEL));
       var nextButtons = Array.prototype.slice.call(document.querySelectorAll(NEXT_SEL));
   
-      // Build wrapper (once): wrap all slides so they live in a stable positioning context
+      // Создаём обёртку один раз: все слайды внутри стабильного контейнера.
       var first = slides[0];
       var parent = first.parentNode;
   
-      // If already wrapped (republish), reuse existing wrapper
+      // Если обёртка уже есть (перепубликация), используем её.
       var existingWrapper = parent.querySelector(".uc-review-slider");
       var wrapper = existingWrapper || document.createElement("div");
       wrapper.className = "uc-review-slider";
@@ -74,18 +74,18 @@
           wrapper.appendChild(s);
         });
       } else {
-        // refresh slides reference from wrapper (safer)
+        // Обновляем список слайдов из обёртки (надёжнее).
         slides = Array.prototype.slice.call(wrapper.querySelectorAll(SLIDE_SEL));
       }
   
       var currentIndex = 0;
       var isAnimating = false;
   
-      // Keep this in sync with CSS transition time for enter animation (ms)
+      // Длительность должна совпадать с CSS-анимацией (мс).
       var ANIM_MS = 1000;
   
       /* -----------------------------
-         Height management
+         УПРАВЛЕНИЕ ВЫСОТОЙ
       ------------------------------ */
       function setWrapperHeight(index, animate) {
         var h = slides[index].offsetHeight || 0;
@@ -98,13 +98,13 @@
       }
   
       /* -----------------------------
-         Media stop helpers
+         ОСТАНОВКА МЕДИА
       ------------------------------ */
     function stopHtml5Videos(scopeEl, skipEl) {
       (scopeEl || wrapper).querySelectorAll("video").forEach(function (v) {
         if (skipEl && v === skipEl) return;
         try { v.pause(); } catch(e) {}
-        // If you want rewind:
+        // Если нужно перематывать в начало:
         // try { v.currentTime = 0; } catch(e) {}
       });
     }
@@ -116,14 +116,14 @@
           try {
             if (!f.contentWindow) return;
   
-            // Send to YouTube origin (more reliable than "*")
+            // Отправляем на YouTube origin (надёжнее, чем "*").
             var msgStop  = JSON.stringify({ event: "command", func: "stopVideo", args: "" });
             var msgPause = JSON.stringify({ event: "command", func: "pauseVideo", args: "" });
   
             f.contentWindow.postMessage(msgStop,  "https://www.youtube.com");
             f.contentWindow.postMessage(msgPause, "https://www.youtube.com");
   
-            // Some cases need a second poke shortly after (player readiness timing)
+            // Иногда нужен второй сигнал (задержка готовности плеера).
             setTimeout(function () {
               try {
                 f.contentWindow && f.contentWindow.postMessage(msgStop,  "https://www.youtube.com");
@@ -135,7 +135,7 @@
         });
       }
   
-      // Hard fallback: reset src (100% stops, but reloads iframe)
+      // Жёсткий фолбэк: сброс src (гарантированно останавливает, но перезагружает iframe).
     function hardResetYouTubeIframes(scopeEl, skipEl) {
       var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
         iframes.forEach(function (f) {
@@ -143,7 +143,7 @@
           try {
             var src = f.getAttribute("src") || f.getAttribute("data-original");
             if (!src) return;
-            // reset src to itself
+            // Сбрасываем src на текущее значение.
             f.setAttribute("src", src);
           } catch(e) {}
         });
@@ -170,17 +170,17 @@
     }
 
     function stopAllMediaOnPage(skipEl) {
-      // Stop everything on the page except the media being started
+      // Останавливаем всё на странице, кроме запускаемого медиа.
       stopHtml5Videos(document, skipEl);
       stopYouTubeIframes(document, skipEl);
       stopVimeoIframes(document, skipEl);
   
-        // OPTIONAL fallback (uncomment only if postMessage is ignored on your Tilda page)
+        // ДОП. ФОЛБЭК: раскомментируйте, если postMessage игнорируется.
       // setTimeout(function(){ hardResetYouTubeIframes(document, skipEl); }, 160);
       }
   
       /* -----------------------------
-         Render helpers
+         ОТРИСОВКА
       ------------------------------ */
       function showInitial() {
         slides.forEach(function (s, i) {
@@ -196,7 +196,7 @@
       function showSlide(nextIndex, direction) {
         if (isAnimating || nextIndex === currentIndex) return;
   
-        // stop any playing media BEFORE switching
+        // Останавливаем медиа перед переключением.
         stopAllMediaIn(wrapper);
   
         isAnimating = true;
@@ -204,23 +204,23 @@
         var current = slides[currentIndex];
         var next = slides[nextIndex];
   
-        // Prepare next slide enter state
+        // Подготавливаем состояние входа следующего слайда.
         next.classList.remove("is-enter-from-right", "is-enter-from-left");
         if (direction === "next") next.classList.add("is-enter-from-right");
         else next.classList.add("is-enter-from-left");
   
-        // Make next visible (still offset)
+        // Делаем следующий слайд видимым (ещё со смещением).
         next.classList.add("is-active");
   
-        // Set wrapper height to next slide to avoid layout jump
+        // Выравниваем высоту обёртки под следующий слайд.
         setWrapperHeight(nextIndex, true);
   
-        // Start enter animation on next
+        // Запускаем входную анимацию.
         requestAnimationFrame(function () {
           next.classList.remove("is-enter-from-right", "is-enter-from-left");
         });
   
-        // IMPORTANT: instantly hide current (no leave animation => no “jump up”)
+        // ВАЖНО: мгновенно скрываем текущий (без «выхода», чтобы не было скачка).
         current.classList.remove("is-active");
   
         setTimeout(function () {
@@ -237,7 +237,7 @@
       }
   
       /* -----------------------------
-         Click events (multiple controls allowed)
+         КЛИКИ (МОЖНО НЕСКОЛЬКО КНОПОК)
       ------------------------------ */
       nextButtons.forEach(function (btn) {
         btn.addEventListener("click", function (e) {
@@ -254,7 +254,7 @@
       });
 
       /* -----------------------------
-         Stop other media on play
+         ОСТАНОВКА ДРУГИХ МЕДИА ПРИ ВОСПРОИЗВЕДЕНИИ
       ------------------------------ */
       document.addEventListener("play", function (e) {
         var t = e.target;
@@ -274,8 +274,8 @@
       wrapper.addEventListener("click", onSliderPointer, true);
   
       /* -----------------------------
-         Touch swipe (mobile + tablet)
-         We enable it from <= 960px by default
+         СВАЙП (МОБИЛЬНЫЕ И ПЛАНШЕТЫ)
+         По умолчанию включено для <= 960px.
       ------------------------------ */
       var SWIPE_MAX_WIDTH = 960;
       var startX = 0, startY = 0, isDown = false, startTime = 0;
@@ -306,10 +306,10 @@
         var dy = touch.clientY - startY;
         var dt = Date.now() - startTime;
   
-        // thresholds
-        var MIN_DIST = 40;      // px
-        var MAX_TIME = 600;     // ms
-        var MAX_Y = 80;         // px (prevent vertical scroll swipe triggering)
+        // Пороги.
+        var MIN_DIST = 40;      // px.
+        var MAX_TIME = 600;     // ms.
+        var MAX_Y = 80;         // px (не даём вертикальному скроллу срабатывать как свайп).
   
         if (Math.abs(dy) > MAX_Y) return;
         if (dt > MAX_TIME) return;
@@ -320,7 +320,7 @@
       }, { passive: true });
   
       /* -----------------------------
-         Resize: keep wrapper height correct
+         РЕСАЙЗ: ПОДДЕРЖИВАЕМ КОРРЕКТНУЮ ВЫСОТУ
       ------------------------------ */
       window.addEventListener("resize", function () {
         setWrapperHeight(currentIndex, false);
@@ -329,7 +329,7 @@
       showInitial();
     }
   
-    // Tilda sometimes injects blocks after DOMContentLoaded; retry a few times
+    // Тильда иногда вставляет блоки после DOMContentLoaded; пробуем несколько раз.
     var tries = 0;
     (function tryInit() {
       tries++;
