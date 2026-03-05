@@ -1,0 +1,309 @@
+<!--
+  Tilda Zero Block Slider — готовый блок для вставки в HTML-блок Тильды
+  Шаги:
+  1) Назначьте класс uc-review-slide всем блокам, которые должны стать слайдами.
+  2) Назначьте классы элементов управления:
+     - uc-review-prev — кнопка «назад»
+     - uc-review-next — кнопка «вперёд»
+  Элементы управления могут быть в отдельном zero-блоке до слайдов
+  или внутри самих слайдов (любой кликабельный элемент).
+-->
+<style>
+    /* Wrapper for stable layout (prevents jumps) */
+    .uc-review-slider {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+    }
+  
+    /* Slides positioning */
+    .uc-review-slide {
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(0);
+      transition: opacity 1s cubic-bezier(.22,.61,.36,1), transform 1s cubic-bezier(.22,.61,.36,1);
+    }
+  
+    .uc-review-slide.is-active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  
+    /* Enter animation states */
+    .uc-review-slide.is-enter-from-right {
+      transform: translateX(18%);
+      opacity: 0;
+    }
+    .uc-review-slide.is-enter-from-left {
+      transform: translateX(-18%);
+      opacity: 0;
+    }
+  </style>
+  
+  <script>
+  (function () {
+    // Change only these class names if needed
+    var SLIDE_SEL = ".uc-review-slide";
+    var PREV_SEL  = ".uc-review-prev";
+    var NEXT_SEL  = ".uc-review-next";
+  
+    function init() {
+      var slides = Array.prototype.slice.call(document.querySelectorAll(SLIDE_SEL));
+      if (!slides.length) return;
+  
+      var prevButtons = Array.prototype.slice.call(document.querySelectorAll(PREV_SEL));
+      var nextButtons = Array.prototype.slice.call(document.querySelectorAll(NEXT_SEL));
+  
+      // Build wrapper (once): wrap all slides so they live in a stable positioning context
+      var first = slides[0];
+      var parent = first.parentNode;
+  
+      // If already wrapped (republish), reuse existing wrapper
+      var existingWrapper = parent.querySelector(".uc-review-slider");
+      var wrapper = existingWrapper || document.createElement("div");
+      wrapper.className = "uc-review-slider";
+  
+      if (!existingWrapper) {
+        parent.insertBefore(wrapper, first);
+        slides.forEach(function (s) {
+          wrapper.appendChild(s);
+        });
+      } else {
+        // refresh slides reference from wrapper (safer)
+        slides = Array.prototype.slice.call(wrapper.querySelectorAll(SLIDE_SEL));
+      }
+  
+      var currentIndex = 0;
+      var isAnimating = false;
+  
+      // Keep this in sync with CSS transition time for enter animation (ms)
+      var ANIM_MS = 1000;
+  
+      /* -----------------------------
+         Height management
+      ------------------------------ */
+      function setWrapperHeight(index, animate) {
+        var h = slides[index].offsetHeight || 0;
+        if (!h) return;
+  
+        if (animate) wrapper.style.transition = "height 0.25s ease";
+        else wrapper.style.transition = "none";
+  
+        wrapper.style.height = h + "px";
+      }
+  
+      /* -----------------------------
+         Media stop helpers
+      ------------------------------ */
+      function stopHtml5Videos(scopeEl) {
+        (scopeEl || wrapper).querySelectorAll("video").forEach(function (v) {
+          try { v.pause(); } catch(e) {}
+          // If you want rewind:
+          // try { v.currentTime = 0; } catch(e) {}
+        });
+      }
+  
+      function stopYouTubeIframes(scopeEl) {
+        var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
+        iframes.forEach(function (f) {
+          try {
+            if (!f.contentWindow) return;
+  
+            // Send to YouTube origin (more reliable than "*")
+            var msgStop  = JSON.stringify({ event: "command", func: "stopVideo", args: "" });
+            var msgPause = JSON.stringify({ event: "command", func: "pauseVideo", args: "" });
+  
+            f.contentWindow.postMessage(msgStop,  "https://www.youtube.com");
+            f.contentWindow.postMessage(msgPause, "https://www.youtube.com");
+  
+            // Some cases need a second poke shortly after (player readiness timing)
+            setTimeout(function () {
+              try {
+                f.contentWindow && f.contentWindow.postMessage(msgStop,  "https://www.youtube.com");
+                f.contentWindow && f.contentWindow.postMessage(msgPause, "https://www.youtube.com");
+              } catch(e) {}
+            }, 120);
+  
+          } catch(e) {}
+        });
+      }
+  
+      // Hard fallback: reset src (100% stops, but reloads iframe)
+      function hardResetYouTubeIframes(scopeEl) {
+        var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
+        iframes.forEach(function (f) {
+          try {
+            var src = f.getAttribute("src") || f.getAttribute("data-original");
+            if (!src) return;
+            // reset src to itself
+            f.setAttribute("src", src);
+          } catch(e) {}
+        });
+      }
+  
+      function stopVimeoIframes(scopeEl) {
+        var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="player.vimeo.com"]');
+        iframes.forEach(function (f) {
+          try {
+            if (!f.contentWindow) return;
+            f.contentWindow.postMessage(
+              JSON.stringify({ method: "pause" }),
+              "*"
+            );
+          } catch(e) {}
+        });
+      }
+  
+      function stopAllMedia() {
+        // Stop everything inside the slider (simple + robust)
+        stopHtml5Videos(wrapper);
+        stopYouTubeIframes(wrapper);
+        stopVimeoIframes(wrapper);
+  
+        // OPTIONAL fallback (uncomment only if postMessage is ignored on your Tilda page)
+        // setTimeout(function(){ hardResetYouTubeIframes(wrapper); }, 160);
+      }
+  
+      /* -----------------------------
+         Render helpers
+      ------------------------------ */
+      function showInitial() {
+        slides.forEach(function (s, i) {
+          s.classList.toggle("is-active", i === currentIndex);
+          s.classList.remove("is-enter-from-right", "is-enter-from-left");
+        });
+  
+        requestAnimationFrame(function () {
+          setWrapperHeight(currentIndex, false);
+        });
+      }
+  
+      function showSlide(nextIndex, direction) {
+        if (isAnimating || nextIndex === currentIndex) return;
+  
+        // stop any playing media BEFORE switching
+        stopAllMedia();
+  
+        isAnimating = true;
+  
+        var current = slides[currentIndex];
+        var next = slides[nextIndex];
+  
+        // Prepare next slide enter state
+        next.classList.remove("is-enter-from-right", "is-enter-from-left");
+        if (direction === "next") next.classList.add("is-enter-from-right");
+        else next.classList.add("is-enter-from-left");
+  
+        // Make next visible (still offset)
+        next.classList.add("is-active");
+  
+        // Set wrapper height to next slide to avoid layout jump
+        setWrapperHeight(nextIndex, true);
+  
+        // Start enter animation on next
+        requestAnimationFrame(function () {
+          next.classList.remove("is-enter-from-right", "is-enter-from-left");
+        });
+  
+        // IMPORTANT: instantly hide current (no leave animation => no “jump up”)
+        current.classList.remove("is-active");
+  
+        setTimeout(function () {
+          currentIndex = nextIndex;
+          isAnimating = false;
+        }, ANIM_MS);
+      }
+  
+      function goNext() {
+        showSlide((currentIndex + 1) % slides.length, "next");
+      }
+      function goPrev() {
+        showSlide((currentIndex - 1 + slides.length) % slides.length, "prev");
+      }
+  
+      /* -----------------------------
+         Click events (multiple controls allowed)
+      ------------------------------ */
+      nextButtons.forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          goNext();
+        });
+      });
+  
+      prevButtons.forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+          e.preventDefault();
+          goPrev();
+        });
+      });
+  
+      /* -----------------------------
+         Touch swipe (mobile + tablet)
+         We enable it from <= 960px by default
+      ------------------------------ */
+      var SWIPE_MAX_WIDTH = 960;
+      var startX = 0, startY = 0, isDown = false, startTime = 0;
+  
+      function isSwipeEnabled() {
+        return window.innerWidth <= SWIPE_MAX_WIDTH;
+      }
+  
+      wrapper.addEventListener("touchstart", function (e) {
+        if (!isSwipeEnabled()) return;
+        if (!e.touches || e.touches.length !== 1) return;
+  
+        isDown = true;
+        startTime = Date.now();
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      }, { passive: true });
+  
+      wrapper.addEventListener("touchend", function (e) {
+        if (!isSwipeEnabled()) return;
+        if (!isDown) return;
+        isDown = false;
+  
+        var touch = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+        if (!touch) return;
+  
+        var dx = touch.clientX - startX;
+        var dy = touch.clientY - startY;
+        var dt = Date.now() - startTime;
+  
+        // thresholds
+        var MIN_DIST = 40;      // px
+        var MAX_TIME = 600;     // ms
+        var MAX_Y = 80;         // px (prevent vertical scroll swipe triggering)
+  
+        if (Math.abs(dy) > MAX_Y) return;
+        if (dt > MAX_TIME) return;
+        if (Math.abs(dx) < MIN_DIST) return;
+  
+        if (dx < 0) goNext();
+        else goPrev();
+      }, { passive: true });
+  
+      /* -----------------------------
+         Resize: keep wrapper height correct
+      ------------------------------ */
+      window.addEventListener("resize", function () {
+        setWrapperHeight(currentIndex, false);
+      });
+  
+      showInitial();
+    }
+  
+    // Tilda sometimes injects blocks after DOMContentLoaded; retry a few times
+    var tries = 0;
+    (function tryInit() {
+      tries++;
+      init();
+      if (document.querySelectorAll(SLIDE_SEL).length === 0 && tries < 20) {
+        setTimeout(tryInit, 200);
+      }
+    })();
+  })();
+  </script>  
