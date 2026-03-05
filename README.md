@@ -56,5 +56,5 @@ MIT
 
 ## Автор
 
-Автор: sceptizmo  
-Сайт: https://sceptizmo.net/
+Автор: [@sceptizmo](https://github.com/sceptizmo)  
+Сайт: [sceptizmo.net](https://sceptizmo.net/?utm_source=github)
