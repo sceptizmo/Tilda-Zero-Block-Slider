@@ -97,17 +97,19 @@
       /* -----------------------------
          Media stop helpers
       ------------------------------ */
-      function stopHtml5Videos(scopeEl) {
-        (scopeEl || wrapper).querySelectorAll("video").forEach(function (v) {
-          try { v.pause(); } catch(e) {}
-          // If you want rewind:
-          // try { v.currentTime = 0; } catch(e) {}
-        });
-      }
+    function stopHtml5Videos(scopeEl, skipEl) {
+      (scopeEl || wrapper).querySelectorAll("video").forEach(function (v) {
+        if (skipEl && v === skipEl) return;
+        try { v.pause(); } catch(e) {}
+        // If you want rewind:
+        // try { v.currentTime = 0; } catch(e) {}
+      });
+    }
   
-      function stopYouTubeIframes(scopeEl) {
-        var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
+    function stopYouTubeIframes(scopeEl, skipEl) {
+      var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
         iframes.forEach(function (f) {
+        if (skipEl && f === skipEl) return;
           try {
             if (!f.contentWindow) return;
   
@@ -131,9 +133,10 @@
       }
   
       // Hard fallback: reset src (100% stops, but reloads iframe)
-      function hardResetYouTubeIframes(scopeEl) {
-        var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
+    function hardResetYouTubeIframes(scopeEl, skipEl) {
+      var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="youtube.com/embed"]');
         iframes.forEach(function (f) {
+        if (skipEl && f === skipEl) return;
           try {
             var src = f.getAttribute("src") || f.getAttribute("data-original");
             if (!src) return;
@@ -143,9 +146,10 @@
         });
       }
   
-      function stopVimeoIframes(scopeEl) {
-        var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="player.vimeo.com"]');
+    function stopVimeoIframes(scopeEl, skipEl) {
+      var iframes = (scopeEl || wrapper).querySelectorAll('iframe[src*="player.vimeo.com"]');
         iframes.forEach(function (f) {
+        if (skipEl && f === skipEl) return;
           try {
             if (!f.contentWindow) return;
             f.contentWindow.postMessage(
@@ -156,14 +160,20 @@
         });
       }
   
-      function stopAllMedia() {
-        // Stop everything inside the slider (simple + robust)
-        stopHtml5Videos(wrapper);
-        stopYouTubeIframes(wrapper);
-        stopVimeoIframes(wrapper);
+    function stopAllMediaIn(scopeEl) {
+      stopHtml5Videos(scopeEl);
+      stopYouTubeIframes(scopeEl);
+      stopVimeoIframes(scopeEl);
+    }
+
+    function stopAllMediaOnPage(skipEl) {
+      // Stop everything on the page except the media being started
+      stopHtml5Videos(document, skipEl);
+      stopYouTubeIframes(document, skipEl);
+      stopVimeoIframes(document, skipEl);
   
         // OPTIONAL fallback (uncomment only if postMessage is ignored on your Tilda page)
-        // setTimeout(function(){ hardResetYouTubeIframes(wrapper); }, 160);
+      // setTimeout(function(){ hardResetYouTubeIframes(document, skipEl); }, 160);
       }
   
       /* -----------------------------
@@ -184,7 +194,7 @@
         if (isAnimating || nextIndex === currentIndex) return;
   
         // stop any playing media BEFORE switching
-        stopAllMedia();
+        stopAllMediaIn(wrapper);
   
         isAnimating = true;
   
@@ -239,6 +249,26 @@
           goPrev();
         });
       });
+
+      /* -----------------------------
+         Stop other media on play
+      ------------------------------ */
+      document.addEventListener("play", function (e) {
+        var t = e.target;
+        if (!t || t.tagName !== "VIDEO") return;
+        if (!wrapper.contains(t)) return;
+        stopAllMediaOnPage(t);
+      }, true);
+
+      function onSliderPointer(e) {
+        var iframe = e.target && e.target.closest ? e.target.closest("iframe") : null;
+        if (!iframe) return;
+        if (!wrapper.contains(iframe)) return;
+        stopAllMediaOnPage(iframe);
+      }
+
+      wrapper.addEventListener("pointerdown", onSliderPointer, true);
+      wrapper.addEventListener("click", onSliderPointer, true);
   
       /* -----------------------------
          Touch swipe (mobile + tablet)
