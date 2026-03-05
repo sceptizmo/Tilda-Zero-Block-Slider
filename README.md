@@ -57,4 +57,4 @@ MIT
 ## Автор
 
 Автор: sceptizmo  
-Сайт: http://sceptizmo.net/
+Сайт: https://sceptizmo.net/
